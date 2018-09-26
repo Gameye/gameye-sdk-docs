@@ -86,9 +86,9 @@ const gameye = new GameyeClient(api_config);
 
 ```PHP
 $gameye = new \Gameye\SDK\GameyeClient([
-            'AccessToken' => 'GAMEYE_API_KEY',
-            'ApiEndpoint' => 'https://api.gameye.com',
-        ]);
+    'AccessToken' => 'GAMEYE_API_KEY',
+    'ApiEndpoint' => 'https://api.gameye.com',
+]);
 ```
 
 # Command and Query Responsibility Segregation (CQRS)
@@ -255,7 +255,21 @@ TODO
 
 ###  Query Game (PHP)
 
-TODO
+```php
+$games = $gameye->queryGame();
+
+foreach($games->game as $game) {
+    echo $game->gameKey."<br />";
+    echo "<ul>";
+
+    foreach($game->location as $locationName => $locationValue) {
+	if($locationValue) {
+	    echo "<li>".$locationName."</li>";
+	}
+    }
+    echo "</ul>";
+}
+```
 
 ## Query Game templates and parameters
 
@@ -633,7 +647,33 @@ async function request_match(gameye: GameyeClient, gameKey: string, matchKey: st
 
 ### Query match state  (PHP)
 
+```php
+
+$matches = $client->queryMatch();
+
+echo "<ul>";
+foreach($matches->match as $match) {
+
+    echo "<li>";
+    echo "Match ID: ".$match->matchKey."<br />";
+    echo "Game: ".$match->gameKey."<br />";
+    echo "Location: ".$match->locationKey."<br />";
+    echo "Game connect: ".$match->host.":".$match->port->game."<br />";
+    echo "GOTV connect: ".$match->host.":".$match->port->gotv."<br />";
+    echo "</li>";
+}
+
+echo "</ul>";
+
+$filteredMatches = GameyeSelector::selectMatchListForGame($matches, 'csgo');
+
+$singleMatch = GameyeSelector::selectMatchItem($matches, $matchKey);
+```
+
+
 ### Query match state  (Golang)
+
+TODO
 
 
 ## Query  / Subscribe Statistics 
@@ -653,7 +693,7 @@ If you have any matches in progress you can fetch the state using
 the  `statistic` `query` or `subscribe` given a valid `matchKey`.
 
 
-### statistic data structure (json)
+### Statistic data structure (json)
 
 The `statistic` `query` / `subscribe` returns a json object with one attribute
 `statistic` where we find the attributes:
