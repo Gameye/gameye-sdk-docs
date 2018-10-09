@@ -40,10 +40,12 @@ Follow the instructions for your language of choice bellow. In case of any troub
 $ npm install @gameye/sdk -s
 ```
 
-#### Install the SDK (Golang)
-```goLang
-TODO ....
+#### Install the SDK (Go)
+
+```bash
+go get -u github.com/Gameye/gameye-sdk-go/clients
 ```
+
 
 #### Install the SDK (PHP using composer)
 
@@ -81,6 +83,26 @@ const api_config = <GameyeClientConfig>({endpoint:"https://api.gameye.com", toke
 
 const gameye = new GameyeClient(api_config);
 ```
+
+## Initiate a Gameye Client (Go)
+
+Make sure to import the needed package(s):
+
+```go
+
+import (
+	"github.com/Gameye/gameye-sdk-go/clients"
+)
+```
+Now you can instantiate `GameyeClientConfig` with your `Endpoint`  and api `Token`
+and use it to set create a `NewGameyeClient`
+
+```go
+api_config := clients.GameyeClientConfig{Endpoint: "https://api.gameye.com", Token: "GAMEYE_API_KEY"}
+
+gameye := clients.NewGameyeClient(api_config)
+```
+
 
 ## Initiate a Gameye Client (PHP)
 
@@ -249,9 +271,66 @@ async function get_games_and_locations(gameye: GameyeClient) {
 }
 ```
 
-###  Query Game (Golang)
+###  Query Game (Go)
 
-TODO
+In the following (complete) sample we show how to use the `QueryGame` method 
+in Go to retrieve all `Location`s and all `Game`s
+
+A `Query` in the `Go` SDK returns a (`QueryState`, `Error`) tuple.
+
+You can run this part of the SDK without a valid `API TOKEN`.
+
+```go
+package main
+
+import (
+	"fmt"
+	"github.com/Gameye/gameye-sdk-go/clients"
+	"github.com/Gameye/gameye-sdk-go/models"
+	"github.com/Gameye/gameye-sdk-go/selectors"
+)
+
+func main() {
+    // init the client
+    api_config := clients.GameyeClientConfig{Endpoint: "https://api.gameye.com"} // no token needed
+    gameye := clients.NewGameyeClient(api_config)
+
+    fmt.Printf("fetch game info from Gameye client\n")
+
+    var err error
+    var games_and_locations *models.GameQueryState
+
+    games_and_locations, err = gameye.QueryGame()
+    if err != nil {
+        fmt.Printf("\nSorry: queryGame call failed:  %s\n", err)
+        return
+    }
+
+    fmt.Printf("\nWe have %d locations\n", len(games_and_locations.Location))
+
+    for i, loc_item := range games_and_locations.Location {
+        fmt.Printf("  - location %s --> %#v\n", i, loc_item)
+    }
+
+    fmt.Printf("\nWe have %d games\n", len(games_and_locations.Game))
+
+    for game_key, game_item := range games_and_locations.Game {
+        fmt.Printf("  - game %s available at locations: %#v\n", game_key, game_item.Location)
+    }
+
+    // using a selector
+    fmt.Printf("\nThese game are available to start\n")
+
+    for game_key, _ := range games_and_locations.Game {
+        locationList := selectors.SelectLocationListForGame(games_and_locations, game_key)
+        for _, loc_item := range locationList {
+           fmt.Printf("  - game %s available at location: %s\n", game_key, loc_item.LocationKey)
+        }
+    }
+
+}
+```
+
 
 ###  Query Game (PHP)
 
@@ -428,6 +507,66 @@ async function get_templates_for_game(gameye: GameyeClient, gameKey: string) {
 }
 ```
 
+In the following sample we demonstrate how to extract a list of game `Template`s
+and use selectors to access the `Arg`s for a given `template`.
+
+### Query Template (Go)
+
+```Go
+package main
+
+import (
+    "fmt"
+    "github.com/Gameye/gameye-sdk-go/clients"
+    "github.com/Gameye/gameye-sdk-go/models"
+    "github.com/Gameye/gameye-sdk-go/selectors"
+)
+
+func main() {
+
+    api_config := clients.GameyeClientConfig{Endpoint: "https://api.gameye.com", Token: "GAMEYE_API_KEY"}
+    gameye := clients.NewGameyeClient(api_config)
+
+    gameKey := "csgo"
+    fmt.Printf("fetch %s game templates from Gameye client\n", gameKey)
+
+    var err error
+    var available_templates *models.TemplateQueryState
+
+    available_templates, err = gameye.QueryTemplate(gameKey)
+    if err != nil {
+        fmt.Printf("\nSorry: queryTemplate call failed:  %s\n", err)
+        return
+    }
+
+    fmt.Printf("\nWe have %d templates available for game '%s'\n", len(available_templates.Template), gameKey)
+
+    for templ_key, templ_item := range available_templates.Template {
+        fmt.Printf("  - template '%s' with %d args\n", templ_key, len(templ_item.Arg))
+    }
+
+    // use a selector if you like a list better
+
+    templateList := selectors.SelectTemplateList(available_templates)
+
+    fmt.Printf("\nWe have %d templates available for game '%s'\n", len(templateList), gameKey)
+
+    for i, templ_item := range templateList {
+        fmt.Printf("  - template %d --> '%s' with %d args\n", i, templ_item.TemplateKey, len(templ_item.Arg))
+    }
+
+    // pick a specific template and show the args
+
+    templateKey := "bots"
+    template := selectors.SelectTemplateItem(available_templates, templateKey)
+
+    fmt.Printf("\nThese %d args are available for template '%s' and game '%s'\n", len(template.Arg), templateKey, gameKey)
+
+    for i, arg_item := range template.Arg {
+        fmt.Printf("  - arg %d  -->  %#v\n", i, arg_item)
+    }
+}
+```
 
 ## Start a match
 
@@ -542,6 +681,91 @@ async function start_stop_match(gameye: GameyeClient){
 
 }
 ```
+## Start and stop a match (Go)
+
+Using the `Go` SDK we can call the `CommandStartMatch` and `CommandStopMatch` commands after
+instatiating the client, passing in all arguments needed to start a match, including a unique
+`matchKey`. The command calls just return an `error`. If the `error` is `nil` you should use
+a `QueryMatch` call and the `SelectMatchItem` selector to get the match handle that contains
+information about the started match.
+ 
+```go
+package main
+
+import (
+    "fmt"
+    "time"
+    "github.com/Gameye/gameye-sdk-go/clients"
+    "github.com/Gameye/gameye-sdk-go/models"
+    "github.com/Gameye/gameye-sdk-go/selectors"
+)
+
+func main() {
+
+    api_config := clients.GameyeClientConfig{Endpoint: "https://api.gameye.com", Token: "GAMEYE_API_KEY"}
+    gameye := clients.NewGameyeClient(api_config)
+
+    // all params we need to start a match
+    gameKey := "csgo"
+    locationKeys := []string{"rotterdam"}
+    templateKey := "bots"
+    matchConfig := map[string]interface{}{
+     "steamToken": "",
+     "maxPlayers": 12,
+     "tickRate":  128,
+     "maxRounds": 6,
+     "gameType": 0,
+     "gameMode": 1,
+     "mapgroup": "mg_active",
+     "map": "de_dust",
+     "teamNameOne": "TeamA",
+     "teamNameTwo": "TeamB",
+    };
+    // we need a unique matchKey lets use a timestamp ...
+    matchKey := fmt.Sprintf("%d", time.Now().UnixNano())
+
+    var err error
+
+    // start a match
+    fmt.Printf("\nlet's START a match with key %s ....\n", matchKey)
+
+    err = gameye.CommandStartMatch(matchKey, gameKey, locationKeys, templateKey, matchConfig);
+    if err != nil {
+        fmt.Printf("\nSorry: CommandStartMatch call failed:  %s\n", err)
+        return
+    }
+
+    fmt.Printf("...done\n")
+
+    // check for active matches
+    var available_matches *models.MatchQueryState
+
+    available_matches, err = gameye.QueryMatch()
+    if err != nil {
+        fmt.Printf("\nSorry: queryMatch call failed:  %s\n", err)
+        return
+    }
+
+    // select the match handle
+    my_match := selectors.SelectMatchItem(available_matches, matchKey)
+
+	fmt.Printf("\n%#v\n", my_match)
+
+	fmt.Printf("\nThe match is running at host %s at ports %d (game) and %d (gotv)\n", my_match.Host, my_match.Port["game"], my_match.Port["gotv"])
+
+    // stop the match
+    fmt.Printf("\nlet's STOP the match with key %s ....\n", matchKey)
+
+    err = gameye.CommandStopMatch(matchKey);
+    if err != nil {
+        fmt.Printf("\nSorry: CommandStopMatch call failed:  %s\n", err)
+        return
+    }
+
+    fmt.Printf("...done\n")
+
+}
+```
 
 ## Listen to real time updates of a running match
 
@@ -596,7 +820,18 @@ async function request_match(gameye: GameyeClient, matchKey: string){
 }
 ```
 
+### Query match state (Go)
+
+```go
+    available_matches, err = gameye.QueryMatch()
+    if err != nil {
+        fmt.Printf("\nSorry: queryMatch call failed:  %s\n", err)
+        return
+    }
+```
+
 ### Match selectors
+
 
 You are encouraged to use: 
 - `selectMatchList` to get a list of all active matches (may be empty list `[]`)
@@ -633,10 +868,62 @@ async function request_match(gameye: GameyeClient, gameKey: string, matchKey: st
 
 ### Query match state  (PHP)
 
-### Query match state  (Golang)
+
+
+### Query match state  (Go)
+Using `QueryMatch` we get a `models.QueryMatchState` structure wih all
+active match data. You can use the following  `selectors` to extract information you need: 
+- `SelectMatchList` to get a list of all active matches (may be empty list `[]`)
+- `SelectMatchListForGame` to get a list of all active matches for a given `gameKey` (may be empty empty list `[]`)
+- `SelectMatchItem` to get the active match item for a given `matchKey` (may be empty `null`)
+
+```go
+package main
+
+import (
+    "fmt"
+    "github.com/Gameye/gameye-sdk-go/clients"
+    "github.com/Gameye/gameye-sdk-go/models"
+    "github.com/Gameye/gameye-sdk-go/selectors"
+)
+
+func main() {
+
+    api_config := clients.GameyeClientConfig{Endpoint: "https://api.gameye.com", Token: "GAMEYE_API_KEY"}
+    gameye := clients.NewGameyeClient(api_config)
+
+    // check for active matches
+    var err error
+    var available_matches *models.MatchQueryState
+
+    available_matches, err = gameye.QueryMatch()
+    if err != nil {
+        fmt.Printf("\nSorry: queryMatch call failed:  %s\n", err)
+        return
+    }
+
+    // use selectors to access the results
+
+    matches := selectors.SelectMatchList(available_matches)
+	fmt.Printf("\n%#v\n", matches)
+
+    gameKey := "csgo"
+
+    matches_for_game := selectors.SelectMatchListForGame(available_matches, gameKey)
+	fmt.Printf("\n%#v\n", matches_for_game)
+
+    // if we have a matchKey you may want to use that
+    matchKey := "MY_MATCH_KEY"
+
+    my_match := selectors.SelectMatchItem(available_matches, matchKey)
+	fmt.Printf("\n%#v\n", my_match)
+}
+
+```
 
 
 ## Query  / Subscribe Statistics 
+
 After you stared a match you can listen to updates to the match statistics
 similar as the match state itself.
 
@@ -779,12 +1066,52 @@ async function get_match_stats(gameye: GameyeClient, matchKey: string){
 }
 ```
 
-```typescript
-// import selectord for  players and Teams
-import { PlayerItem, selectPlayerItem, selectPlayerList, selectPlayerListForTeam } from "@gameye/sdk";
-import { TeamItem, selectTeamItem, selectTeamList } from "@gameye/sdk";
+### Query statistic (Go)
 
+Using the `QueryMatch` and some or the related selector is illustrated in the
+following `Go` code (this can be used for a running or a finished match):
+
+```go
+
+    match_state, err := gameye.QueryStatistic(matchKey)
+    if err != nil {
+        fmt.Printf("\nSorry: QueryStatistic call failed:  %s\n", err)
+        return
+    }
+
+    fmt.Printf("match has %d started rounds", match_state.Statistic.StartedRounds)
+    fmt.Printf("match was started at %d", match_state.Statistic.Start)
+    fmt.Printf("match was stopped at %d", match_state.Statistic.Stop)  // match_state.Statistic.Stop == 0 while it is running
+    fmt.Printf("match has %d started rounds", match_state.Statistic.StartedRounds)
+    fmt.Printf("match has %d finished rounds", match_state.Statistic.FinishedRounds)
+
+    // use selectors to extract information about the match state
+    player_list := selectors.SelectPlayerList(match_state)
+
+    fmt.Printf("\nPayer stats for this match:\n")
+
+    for i, player := range player_list {
+        fmt.Printf("  - player %d (%s) --> (Name: %s, UID: %s)\n", i, player.PlayerKey, player.Name, player.UID)
+        for stat_key, stat_value := range player.Statistic {
+            fmt.Printf("     - player stat: %s --> %d\n", stat_key, stat_value)
+        }
+    }
+
+    team_list := selectors.SelectTeamList(match_state)
+ 
+    for i, team := range team_list {
+        fmt.Printf("  - team %d (%s) --> (Name: %s, UID: %s)\n", i, team.TeamKey, team.Name)
+        for stat_key, stat_value := range team.Statistic {
+            fmt.Printf("     - team stat: %s --> %d\n", stat_key, stat_value)
+        }
+        for player_key, is_part_of_team := range team.Player {
+            if is_part_of_team {
+               fmt.Printf("     - team has player: %s\n", player_key)
+            }
+        }
+    }
 ```
+
 ### Subscribe statistic (Node.js)
 
 To observer the changes in the match statistics we can use `subscribeStatistic`
@@ -920,5 +1247,162 @@ async function observe_match(gameye: GameyeClient, matchKey: string){
 
     // clean up after observing is done
     match_observer.destroy();
+}
+```
+
+### Subscribe statistic (Go)
+
+In this final Go program it all comes together, note the use of 
+`SubscribeMatch`, `NextState` and the selectors to observe all
+relavent changes during the livetime of the match.
+
+```go
+package main
+
+import (
+    "fmt"
+    "time"
+    "github.com/Gameye/gameye-sdk-go/clients"
+    "github.com/Gameye/gameye-sdk-go/models"
+    "github.com/Gameye/gameye-sdk-go/selectors"
+)
+
+func main() {
+
+    api_config := clients.GameyeClientConfig{Endpoint: "https://api.gameye.com", Token: "GAMEYE_API_KEY"}
+    gameye := clients.NewGameyeClient(api_config)
+
+    // all params we need to start a match
+    gameKey := "csgo"
+    locationKeys := []string{"rotterdam"}
+    templateKey := "bots"
+    matchConfig := map[string]interface{}{
+     "steamToken": "",
+     "maxPlayers": 12,
+     "tickRate":  128,
+     "maxRounds": 6,
+     "gameType": 0,
+     "gameMode": 1,
+     "mapgroup": "mg_active",
+     "map": "de_dust",
+     "teamNameOne": "TeamA",
+     "teamNameTwo": "TeamB",
+    };
+    // we need a unique matchKey lets use a timestamp ...
+    matchKey := fmt.Sprintf("%d", time.Now().UnixNano())
+
+    var err error
+
+    // start a match
+    fmt.Printf("\nlet's START a match with key %s ....\n", matchKey)
+
+    err = gameye.CommandStartMatch(matchKey, gameKey, locationKeys, templateKey, matchConfig);
+    if err != nil {
+        fmt.Printf("\nSorry: CommandStartMatch call failed:  %s\n", err)
+        return
+    }
+
+    fmt.Printf("...done\n")
+
+    // check for active matches
+    var available_matches *models.MatchQueryState
+
+    available_matches, err = gameye.QueryMatch()
+    if err != nil {
+        fmt.Printf("\nSorry: queryMatch call failed:  %s\n", err)
+        return
+    }
+
+    // select the match handle
+    my_match := selectors.SelectMatchItem(available_matches, matchKey)
+
+	fmt.Printf("\n%#v\n", my_match)
+
+	fmt.Printf("\nThe match is running at host %s at ports %d (game) and %d (gotv)\n", my_match.Host, my_match.Port["game"], my_match.Port["gotv"])
+
+    // listen to live updates during the match
+
+    match_sub, err := gameye.SubscribeStatistic(matchKey)
+    if err != nil {
+        fmt.Printf("\nSorry: SubscribeStatistic call failed:  %s\n", err)
+        return
+    }
+
+    match_is_running := true
+    for match_is_running {
+        match_state, err := match_sub.NextState()
+        if err != nil {
+            fmt.Printf("\nSorry: NextState call failed:  %s\n", err)
+            return
+        }
+        match_is_running = match_state.Statistic.Stop == 0
+        fmt.Printf("\n\nmatch has %d started rounds\n", match_state.Statistic.StartedRounds)
+        fmt.Printf("match has %d finished rounds\n", match_state.Statistic.FinishedRounds)
+
+        // show the team statistics during the match
+        team_list := selectors.SelectTeamList(match_state)
+        for i, team := range team_list {
+            fmt.Printf("  - team %2d (%15s) Name: %2s --> score %3d\n", i, team.TeamKey, team.Name, team.Statistic["score"])
+        }
+        // and the player scores
+        player_list := selectors.SelectPlayerList(match_state)
+        for i, player := range player_list {
+            fmt.Printf("  - player %2d (PlayerKey: %2s, Name: %15s, UID: %5s) --> %3d assists |  %3d kills | %3d deaths\n",
+            i, player.PlayerKey, player.Name, player.UID, player.Statistic["assist"], player.Statistic["death"], player.Statistic["kill"])
+        }
+    }
+
+    // clean up
+    match_sub.Cancel()
+
+    // get the final statistics
+    //var match_state *models.StatisticQueryState
+    match_state, err := gameye.QueryStatistic(matchKey)
+    if err != nil {
+        fmt.Printf("\nSorry: QueryStatistic call failed:  %s\n", err)
+        return
+    }
+
+    fmt.Printf("\n\nmatch has %d started rounds\n", match_state.Statistic.StartedRounds)
+    fmt.Printf("match was started at %d\n", match_state.Statistic.Start)
+    fmt.Printf("match was stopped at %d\n", match_state.Statistic.Stop)  // match_state.Statistic.Stop == 0 while it is running
+    fmt.Printf("match has %d started rounds\n", match_state.Statistic.StartedRounds)
+    fmt.Printf("match has %d finished rounds\n", match_state.Statistic.FinishedRounds)
+
+    // use selectors to extract information about the match state
+    player_list := selectors.SelectPlayerList(match_state)
+
+    fmt.Printf("\nPayer stats for this match:\n")
+
+    for i, player := range player_list {
+        fmt.Printf("  - player %d (%s) --> (Name: %s, UID: %s)\n", i, player.PlayerKey, player.Name, player.UID)
+        for stat_key, stat_value := range player.Statistic {
+            fmt.Printf("     - player stat: %s --> %d\n", stat_key, stat_value)
+        }
+    }
+
+    team_list := selectors.SelectTeamList(match_state)
+
+    for i, team := range team_list {
+        fmt.Printf("  - team %d (%s) --> (Name: %s, UID: %s)\n", i, team.TeamKey, team.Name)
+        for stat_key, stat_value := range team.Statistic {
+            fmt.Printf("     - team stat: %s --> %d\n", stat_key, stat_value)
+        }
+        for player_key, is_part_of_team := range team.Player {
+            if is_part_of_team {
+               fmt.Printf("     - team has player: %s\n", player_key)
+            }
+        }
+    }
+
+    // stop the match
+    fmt.Printf("\nlet's STOP the match with key %s ....\n", matchKey)
+
+    err = gameye.CommandStopMatch(matchKey);
+    if err != nil {
+        fmt.Printf("\nSorry: CommandStopMatch call failed:  %s\n", err)
+        return
+    }
+    fmt.Printf("...done\n")
 }
 ```
