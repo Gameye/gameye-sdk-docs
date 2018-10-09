@@ -2,8 +2,8 @@
 
 ## Introduction
 
-Create eSport and competitive matches for for your platform 
-without fixed monthly costs or any need for your own server infrastructure for games like:
+Create eSport and competitive matches for for your platform without fixed
+monthly costs or any need for your own server infrastructure for games like:
 - Counter-Strike: Global Offensive, 
 - Team Fortress 2, Left 4 Dead 2, Killing Floor 2, Insurgency and Day of Infamy 
 
@@ -15,127 +15,141 @@ How cool is that!
 # Available SDK options
 The Gameye SDK's are the recommended way to use our API.
 
-Our SDK's are available in several popular languages:
-1. Node.js (Typescript)
-1. Golang
-1. PHP
-1. Raw REST API (curl)
+Our SDK's are available in several popular languages or environments:
+- Node.js (Typescript)
+- Golang
+- PHP
+- Raw REST API (curl)
 
-In these pages we well show you how easy it is to use the SDK's and the raw REST API.
+In these pages we well show you how easy it is to use the SDK's and the raw
+REST API.
 
 ## Getting started
 
 ### Get an API KEY
 
-Obtain a free Gameye API key, please send us an [email](mailto:support@gameye.com).
+Obtain a free Gameye API key, please send us an
+[email](mailto:support@gameye.com).
 
-All API request need to be authorised using your `API_KEY` as an (OAuth) `Bearer` token.
+All API request need to be authorised using your `GAMEYE_API_TOKEN`. You can
+either use this token as a [bearer token](https://tools.ietf.org/html/rfc6750)
+in the http `Authorization` header if you plan to make raw http request, or
+configure it in the api client.
 
 ### Install the SDK
-Follow the instructions for your language of choice bellow. In case of any trouble contact our support department for assistance.
+Follow the instructions for your language of choice bellow. In case of any
+trouble contact our support department for assistance.
 
-#### Install the SDK (Node.js using npm)
-
+#### Install the SDK (Node.js)
+Via npm:
 ```bash
-$ npm install @gameye/sdk -s
+npm install @gameye/sdk -s
 ```
 
 #### Install the SDK (Go)
-
+Via dep:
 ```bash
-go get -u github.com/Gameye/gameye-sdk-go/clients
+dep ensure -add github.com/Gameye/gameye-sdk-go/clients
 ```
 
 
-#### Install the SDK (PHP using composer)
-
-```php
-$ composer require gameye/gameye-sdk-php
-{
-    "require": {
-        "gameye/gameye-sdk-php": "2.*"
-    }
-}
+#### Install the SDK (PHP)
+Via composer
+```bash
+composer require gameye/gameye-sdk-php
 ```
 
 # Create a Gameye client
+The SDK's provide a Gameye client class, you need to pass your
+`GAMEYE_API_TOKEN` and the API endpoint `GAMEYE_API_ENDPOINT` (usually
+https://api.gameye.com). You can also set the `GAMEYE_API_TOKEN` and
+`GAMEYE_API_ENDPOINT` environment variables.
 
-The SDK's provide a Gameye client class, you will need to initiate it with your `GAMEYE_API_KEY` 
-and the API `endoint` you want to use. 
-
-In case of raw API use, use one of the available `endpoints` and add the `GAMEYE_API_KEY` in the
-authorization header.
+In case of raw API use, use one of the available endpoints and add the
+`GAMEYE_API_TOKEN` in the authorization header.
 
 ## Initiate a Gameye Client (Node.js)
-
 ```typescript
 import {
-    GameQueryState,
     GameyeClient,
-    GameyeClientConfig,
-    MatchQueryState,
-    QuerySubscription,
-    StatisticQueryState,
-    TemplateQueryState
 } from "@gameye/sdk"
 
-const api_config = <GameyeClientConfig>({endpoint:"https://api.gameye.com", token: "GAMEYE_API_KEY"});
-
-const gameye = new GameyeClient(api_config);
+const client = new GameyeClient({
+    endpoint: "https://api.gameye.com",
+    token: "GAMEYE_API_TOKEN",
+});
 ```
 
 ## Initiate a Gameye Client (Go)
-
-Make sure to import the needed package(s):
+Use `NewGameyeClient` to instantiate a new client and use a
+`clients.GameyeClientConfig` to configure it.
 
 ```go
-
 import (
 	"github.com/Gameye/gameye-sdk-go/clients"
 )
-```
-Now you can instantiate `GameyeClientConfig` with your `Endpoint`  and api `Token`
-and use it to set create a `NewGameyeClient`
 
-```go
-api_config := clients.GameyeClientConfig{Endpoint: "https://api.gameye.com", Token: "GAMEYE_API_KEY"}
-
-gameye := clients.NewGameyeClient(api_config)
+gameye := clients.NewGameyeClient(clients.GameyeClientConfig{
+    Endpoint: "https://api.gameye.com",
+    Token: "GAMEYE_API_TOKEN"
+})
 ```
 
 
 ## Initiate a Gameye Client (PHP)
-
 ```PHP
 $gameye = new \Gameye\SDK\GameyeClient([
-    'AccessToken' => 'GAMEYE_API_KEY',
+    'AccessToken' => 'GAMEYE_API_TOKEN',
     'ApiEndpoint' => 'https://api.gameye.com',
 ]);
 ```
 
-# Command and Query Responsibility Segregation (CQRS)
+# Concepts
+Here we describe the concepts that you need to understand to use the SDK.
 
-The Gameye SDK's (and API) are desigend using the
+## Commands and queries
+The Gameye SDK's (and API) are desigend with the
 [Command and Query Responsibility Segregation](http://codebetter.com/gregyoung/2010/02/16/cqrs-task-based-uis-event-sourcing-agh/)
-design pattern.
+design pattern in mind.
 
-We have disticts set or `queries` you can use the GET information from the API, 
-and we have an other set of `commands` you can use to change things. You can use the 
-`query` interface to get information about possible games and options and about statistics of
-a match in progress. However you will need to use the `command` interface for things such as to
-`start` and `stop` a match etc.
+The api provide a couple of queries that will get state from the API, queries
+will never alter state. State may be retrieved in real-time or as a snapshot.
+An example of a query is the `statistic` query that will give back the
+statistics from a match. These may be queries in real-time to make a scoreboard,
+but can also be queries as a snapshot to process the match after it has ended.
 
+Commands may alter state, but will never retrieve state. They will only report
+an error if it occurs. If you issue a command that gives no result or error
+back everything is ok! An example of a comaand is the `start` command that
+will start a match.
+
+## Selectors
+You may use the retrieved state directly, however we urge you to use the
+provided selectors. Also, if you want to retrieve something from the state that
+is not provided by the selectors, make a new one! And if it is a selectors that
+could be useful for other parties, please make a pull request!
+
+## Workflow
+So, in order change state, use a command!
+
+If you want to retrieve state from the api, first decide what state you want to
+retrieve and if you want to subscribe to this state or simple retrieve a
+snapshot.
+
+Then, when you have the state pass it to a selector to get the data you are
+looking for.
+
+# Usage
+How to use the SDK's.
 
 ## Get information about available games and locations
+A wide range of games and game options are available, 
+you can `GET` an live list using the `game` query.
 
-A wide range of games and game opions are available, 
-you can `GET` an live list using the `game` `Query`.
-
-The result will be a structure with a list of `game`s, a list of `location`s and 
-for each `game` a list of locations where the game is available.
+The result will be a structure with a list of `game`s, a list of `location`s
+and for each `game` a list of locations where the game is available.
 
 ###  Query Game Sample Data (json)
-
 The game and location data are represented as a simple json structure like this:
 
 ```json
@@ -180,8 +194,8 @@ The game and location data are represented as a simple json structure like this:
 
 ###  Query Game (raw API)
 
-Note that the basic information about games and locations is public and you can fetch this data
-without the need for an valid `GAMEYE_API_KEY`
+Note that the basic information about games and locations is public and you can
+fetch this data without the need for an valid `GAMEYE_API_TOKEN`.
 
 ```bash
 curl https://api.gameye.com/fetch/game
@@ -442,7 +456,7 @@ A sample looks like this:
 ```bash
 curl \
 --header "Content-Type: application/json" \
---header "Authorization: Bearer GAMEYE_API_KEY" \
+--header "Authorization: Bearer GAMEYE_API_TOKEN" \
 https://api.gameye.com/fetch/template?gameKey=VALID_GAME_KEY
 ```
 
@@ -538,7 +552,7 @@ import (
 
 func main() {
 
-    api_config := clients.GameyeClientConfig{Endpoint: "https://api.gameye.com", Token: "GAMEYE_API_KEY"}
+    api_config := clients.GameyeClientConfig{Endpoint: "https://api.gameye.com", Token: "GAMEYE_API_TOKEN"}
     gameye := clients.NewGameyeClient(api_config)
 
     gameKey := "csgo"
@@ -608,7 +622,7 @@ to the `/action/start-match` like this:
 curl \
 --request POST \
 --header "Content-Type: application/json" \
---header "Authorization: Bearer GAMEYE_API_KEY" \
+--header "Authorization: Bearer GAMEYE_API_TOKEN" \
 --data '{
     "locationKeys": ["rotterdam"],
     "gameKey": "csgo",
@@ -636,7 +650,7 @@ and to `stop` use the `/action/stop-match` end point
 curl \
 --request POST \
 --header "Content-Type: application/json" \
---header "Authorization: Bearer GAMEYE_API_KEY" \
+--header "Authorization: Bearer GAMEYE_API_TOKEN" \
 --data '{
     "matchKey": "YOUR_UNIQUE_MATCH_KEY"
 }' \
@@ -646,8 +660,8 @@ https://api.gameye.com/action/stop-match
 The result wil be a HTTP status code:
 - a `204` 'NO CONTENT' in case of a successful started match
 - a `200` 'SUCCESS' in case of a successful stopped match
-- a `401` 'AUTHORISATION NEEDED' in case of a missing `GAMEYE_API_KEY` 
-- a `403` 'NOT ALLOWED' in case of an invalid `GAMEYE_API_KEY` 
+- a `401` 'AUTHORISATION NEEDED' in case of a missing `GAMEYE_API_TOKEN` 
+- a `403` 'NOT ALLOWED' in case of an invalid `GAMEYE_API_TOKEN` 
 - a `404` 'NOT FOUND' in case of a non existing game (template)
 - a `500` in case of any mistakes in the posted payload
   
@@ -716,7 +730,7 @@ import (
 
 func main() {
 
-    api_config := clients.GameyeClientConfig{Endpoint: "https://api.gameye.com", Token: "GAMEYE_API_KEY"}
+    api_config := clients.GameyeClientConfig{Endpoint: "https://api.gameye.com", Token: "GAMEYE_API_TOKEN"}
     gameye := clients.NewGameyeClient(api_config)
 
     // all params we need to start a match
@@ -783,9 +797,11 @@ func main() {
 
 ## Listen to real time updates of a running match
 
-After you stared a match you can listen to updates from the live match using a view simple `query` calls.
+After you stared a match you can listen to updates from the live match using a
+view simple `query` calls.
 
-If you have any matches in progress you can fetch the state using the  `match` `query`.
+If you have any matches in progress you can fetch the state using the  `match`
+`query`.
 
 ### Match data sample (json)
 
@@ -813,7 +829,7 @@ The match query list all matches indexed by `matchKey`
 
 ```bash
 curl \
---header "Authorization: Bearer GAMEYE_API_KEY" \
+--header "Authorization: Bearer GAMEYE_API_TOKEN" \
 https://api.gameye.com/fetch/match
 ```
 
@@ -845,7 +861,6 @@ async function request_match(gameye: GameyeClient, matchKey: string){
 ```
 
 ### Match selectors
-
 
 You are encouraged to use: 
 - `selectMatchList` to get a list of all active matches (may be empty list `[]`)
@@ -924,7 +939,7 @@ import (
 
 func main() {
 
-    api_config := clients.GameyeClientConfig{Endpoint: "https://api.gameye.com", Token: "GAMEYE_API_KEY"}
+    api_config := clients.GameyeClientConfig{Endpoint: "https://api.gameye.com", Token: "GAMEYE_API_TOKEN"}
     gameye := clients.NewGameyeClient(api_config)
 
     // check for active matches
@@ -1069,7 +1084,7 @@ Just `GET` the statistic of any running match using the `matchKey` query paramet
 
 ```bash
 curl \
---header "Authorization: Bearer GAMEYE_API_KEY" \
+--header "Authorization: Bearer GAMEYE_API_TOKEN" \
 https://api.gameye.com/fetch/statistic?matchKey=VALID_MATCH_KEY
 ```
 
@@ -1303,7 +1318,7 @@ import (
 
 func main() {
 
-    api_config := clients.GameyeClientConfig{Endpoint: "https://api.gameye.com", Token: "GAMEYE_API_KEY"}
+    api_config := clients.GameyeClientConfig{Endpoint: "https://api.gameye.com", Token: "GAMEYE_API_TOKEN"}
     gameye := clients.NewGameyeClient(api_config)
 
     // all params we need to start a match
