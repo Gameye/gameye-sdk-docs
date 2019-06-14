@@ -1167,68 +1167,8 @@ To observer the changes in the match statistics we can use `subscribeStatistic`
 this will result in events for each new match state. This is much more friendly than
 hard polling using bare `queryStatistic` calls.
 
-```typescript
+***see example in SDK repository***
 
-async function observe_match(gameye: GameyeClient, matchKey: string){
-
-    // observe the match in real time
-
-    let match_observer: any;
-    let match: false | StatisticQueryState;
-    let match_is_running = true;
-    
-    try {
-        match_observer = await gameye.subscribeStatistic(matchKey);
-    } catch (error) {
-        console.warn("Problem with subscribeStatistic (aborting) :", error);
-        match_is_running = false; // match my be stopped ?
-    }
-    
-    while(match_is_running){
-        try{
-            // wait for new (changed) state
-            match = await match_observer.nextState(); // will return a false of the observer is destroyed
-            if(!match) break;
-            
-            match_is_running = !match.statistic.stop;
-                        
-            console.log("  - start = ", match.statistic.start);
-            console.log("  - stop = ", match.statistic.stop);
-            
-            console.log("  - startedRounds = ", match.statistic.startedRounds);
-            console.log("  - finishedRounds = ", match.statistic.finishedRounds);
-            
-            for( const team in match.statistic.team ){
-                console.log("     - team ", team, " --> ", match.statistic.team[team]);
-            }
-            for( const player in match.statistic.player ){
-                console.log("     - player ", player, " --> ", match.statistic.player[player]);
-            }
-        } catch (error) {
-            console.warn("Problem with queryStatistic (aborting) :", error);
-            // match my be stopped ?
-            match_is_running = false;
-        }
-    }
-
-    // clean up after observing is done
-    match_observer.destroy();
-
-    // use QueryStatistic to get the final scores of the match
-    try{
-        match = await gameye.queryStatistic(matchKey);
-        console.log("  - stats = ", match.statistic);
-        for( const team in match.statistic.team ){
-            console.log("     - team ", team, " --> ", match.statistic.team[team]);
-        }
-        for( const player in match.statistic.player ){
-            console.log("     - player ", player, " --> ", match.statistic.player[player]);
-        }
-    } catch (error) {
-        console.warn("Problem with queryStatistic :", error);
-    }
-}
-```
 
 ### Team and player selectors
 
@@ -1239,65 +1179,7 @@ we can rewrite this using the provided selectors:
 - use `selectPlayerItem` to get a single `PlayerItem` by `playerKey`
 - use `selectPlayerListForTeam` to get a list of `PlayerItem`s for given `teamKey`
 
-```typescript
-
-// import selectors and types for players and teams
-import { selectPlayerItem, selectPlayerItem, selectPlayerList, selectPlayerListForTeam } from "@gameye/sdk";
-import { TeamItem, selectTeamItem, selectTeamList } from "@gameye/sdk";
-
-async function observe_match(gameye: GameyeClient, matchKey: string){
-
-    // observe the match in real time
-
-    let match_observer: any;
-    let match: false | StatisticQueryState;
-    let match_is_running = true;
-    let match_state: StatisticQueryState;
-
-    try {
-        match_observer = await gameye.subscribeStatistic(matchKey);
-    } catch (error) {
-        console.warn("Problem with subscribeStatistic (aborting) :", error);
-        match_is_running = false; // match my be stopped ?
-    }
-    
-    while(match_is_running){
-        try{
-            // wait for new (changed) state
-            match = await match_observer.nextState(); // will return a false of the observer is destroyed
-            if(!match) break;
-            
-            match_state = <StatisticQueryState>match_state_or_false;
-
-            match_is_running = !match.statistic.stop;
-            
-            // extract player stats
-            let player: PlayerItem;
-            const player_list: PlayerItem[] = selectPlayerList(match_state);
-
-            for( player of player_list){
-                console.log("     - player ", player.playerKey , " --> ", player);
-            }
-
-            // extract team stats
-            let team: TeamItem;
-            const team_list: TeamItem[] = selectTeamList(match_state);
-
-            for( team of team_list ){
-                console.log("     - team ", team.teamKey , " --> ", team);
-            }
-
-        } catch (error) {
-            console.warn("Problem with queryStatistic (aborting) :", error);
-            // match my be stopped ?
-            match_is_running = false;
-        }
-    }
-
-    // clean up after observing is done
-    match_observer.destroy();
-}
-```
+***see example in SDK repository***
 
 ### Subscribe statistic (Go)
 
