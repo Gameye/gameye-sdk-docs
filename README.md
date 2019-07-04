@@ -2,15 +2,10 @@
 
 ## Introduction
 
-Create eSport and competitive matches for for your platform without fixed
-monthly costs or any need for your own server infrastructure for games like:
-- Counter-Strike: Global Offensive, 
-- Team Fortress 2, Left 4 Dead 2, Killing Floor 2, Insurgency and Day of Infamy 
+Create competitive matches and game sessions for your platform or game without any fixed
+monthly costs or any need for your own server infrastructure.
 
-Simply implement the Gameye API to kick off online matches when you need the
-you will even be able to implement the scores/statistics directly on your website. 
-
-How cool is that!
+Simply implement the Gameye API to start sessions all over the world. If the game support statistics this will be available in realtime.
 
 # Available SDK options
 The Gameye SDK's are the recommended way to use our API.
@@ -624,9 +619,9 @@ curl \
 --header "Content-Type: application/json" \
 --header "Authorization: Bearer GAMEYE_API_TOKEN" \
 --data '{
-    "locationKeys": ["rotterdam"],
+    "locationKeys": ["amsterdam"],
     "gameKey": "csgo",
-    "templateKey": "bots",
+    "templateKey": "esl1on1",
     "matchKey": "YOUR_UNIQUE_MATCH_KEY",
     "config": {
       "steamToken": "YOUR_STEAM_TOKEN",
@@ -671,8 +666,8 @@ The result wil be a HTTP status code:
 ```typescript
 async function start_stop_match(gameye: GameyeClient){
     const gameKey: string = "csgo";
-    const locationKeys: string[] = ["rotterdam"];
-    const templateKey: string = "bots";
+    const locationKeys: string[] = ["amsterdam"];
+    const templateKey: string = "esl1on1";
     const matchConfig = {
      "steamToken": "",
      "maxPlayers": 12,
@@ -735,8 +730,8 @@ func main() {
 
     // all params we need to start a match
     gameKey := "csgo"
-    locationKeys := []string{"rotterdam"}
-    templateKey := "bots"
+    locationKeys := []string{"amsterdam"}
+    templateKey := "esl1on1"
     matchConfig := map[string]interface{}{
      "steamToken": "",
      "maxPlayers": 12,
@@ -814,7 +809,7 @@ The match query list all matches indexed by `matchKey`
      "1536150547618": {
         "matchKey": "1536150547618",
         "gameKey": "csgo",
-        "locationKey": "rotterdam",
+        "locationKey": "amsterdam",
         "host": "213.163.71.5",
         "created": 1536150547865,
         "port": { 
@@ -1205,8 +1200,8 @@ func main() {
 
     // all params we need to start a match
     gameKey := "csgo"
-    locationKeys := []string{"rotterdam"}
-    templateKey := "bots"
+    locationKeys := []string{"amsterdam"}
+    templateKey := "esl1on1"
     matchConfig := map[string]interface{}{
      "steamToken": "",
      "maxPlayers": 12,
